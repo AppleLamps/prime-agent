@@ -8,7 +8,7 @@ specific fix, the files it touched, and how to verify it.
 
 ---
 
-## How to add an entry (for future agents)
+## How to add an entry
 
 Whenever you make a change that improves Windows support, add an entry here so the
 history stays complete. Follow these steps:
