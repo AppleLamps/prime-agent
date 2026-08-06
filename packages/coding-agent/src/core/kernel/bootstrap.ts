@@ -342,6 +342,16 @@ export function getKernelVenvDir(): string {
 	return path.join(os.homedir(), ".prime", "agent", "kernel-venv");
 }
 
+// The Python interpreter inside a uv-created venv lives under `bin/` on POSIX and
+// `Scripts/` on Windows. Resolve it per-platform so kernel bootstrap works on Windows.
+function venvPythonPath(venv: string): string {
+	return path.join(
+		venv,
+		process.platform === "win32" ? "Scripts" : "bin",
+		process.platform === "win32" ? "python.exe" : "python",
+	);
+}
+
 function getXdgKernelVenvDir(): string {
 	const dataHome = process.env.XDG_DATA_HOME
 		? path.resolve(expandHome(process.env.XDG_DATA_HOME))
@@ -375,6 +385,7 @@ function run(command: string, args: string[], options: { stdio?: "ignore" | "inh
 	return new Promise((resolve, reject) => {
 		const child = spawn(command, args, {
 			env: process.env,
+			windowsHide: true,
 			stdio: options.stdio ?? "ignore",
 		});
 		child.on("error", reject);
@@ -725,7 +736,7 @@ async function bootstrapVenv(
 ): Promise<void> {
 	await mkdir(path.dirname(venv), { recursive: true });
 	const uv = await ensureUv(options);
-	const python = path.join(venv, "bin", "python");
+	const python = venvPythonPath(venv);
 	const sourceDir = await resolveRuntimeSourceDir();
 	const runtimeRequirement = sourceDir ?? RUNTIME_REQUIREMENT;
 	const runtimeIdentity = await resolveRuntimeIdentity();
@@ -886,7 +897,7 @@ async function ensureKernelPythonUncached(
 	}
 
 	const venv = await resolveWritableKernelVenvDir();
-	const python = path.join(venv, "bin", "python");
+	const python = venvPythonPath(venv);
 	const runtimeIdentity = await resolveRuntimeIdentity();
 	if (await kernelReady(python, venv, runtimeIdentity, pythonSkills)) return python;
 

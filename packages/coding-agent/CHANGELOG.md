@@ -2,7 +2,9 @@
 
 ## [Unreleased]
 
-## [0.7.0] - 2026-08-05
+- Fixed kernel bootstrap failing on Windows by resolving the venv Python interpreter from `Scripts\python.exe` instead of the POSIX-only `bin/python` path.
+- Fixed the daemon command recovery journal crashing on Windows with `EPERM: operation not permitted, fsync` by guarding the directory fsync, which is unsupported on Windows.
+- Fixed flashing console windows on Windows when spawning the bash tool, IPython kernel, fork server, and bootstrap commands by setting `windowsHide: true` on child process spawns.
 
 ### Breaking Changes
 
