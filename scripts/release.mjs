@@ -16,7 +16,7 @@
  * 7. Commit
  */
 
-import { execSync } from "child_process";
+import { execFileSync, execSync } from "child_process";
 import { readFileSync, writeFileSync, readdirSync, existsSync } from "fs";
 import { join } from "path";
 
@@ -42,6 +42,24 @@ function run(cmd, options = {}) {
 	}
 }
 
+function runFile(command, args, options = {}) {
+	console.log(`$ ${[command, ...args].map((arg) => JSON.stringify(arg)).join(" ")}`);
+	try {
+		return execFileSync(command, args, {
+			encoding: "utf-8",
+			stdio: options.silent ? "pipe" : "inherit",
+			windowsHide: true,
+			...options,
+		});
+	} catch (e) {
+		if (!options.ignoreError) {
+			console.error(`Command failed: ${command}`);
+			process.exit(1);
+		}
+		return null;
+	}
+}
+
 function getVersion() {
 	const pkg = JSON.parse(readFileSync("packages/ai/package.json", "utf-8"));
 	return pkg.version;
@@ -61,18 +79,14 @@ function compareVersions(a, b) {
 	return 0;
 }
 
-function shellQuote(value) {
-	return `'${value.replace(/'/g, `'\\''`)}'`;
-}
-
 function stageChangedFiles() {
-	const output = run("git ls-files -m -o -d --exclude-standard", { silent: true });
+	const output = runFile("git", ["ls-files", "-m", "-o", "-d", "--exclude-standard"], { silent: true });
 	const paths = [...new Set((output || "").split("\n").map((line) => line.trim()).filter(Boolean))];
 	if (paths.length === 0) {
 		return;
 	}
 
-	run(`git add -- ${paths.map(shellQuote).join(" ")}`);
+	runFile("git", ["add", "--", ...paths]);
 }
 
 function bumpOrSetVersion(target) {
@@ -147,7 +161,7 @@ console.log("\n=== Release Script ===\n");
 
 // 1. Check for uncommitted changes
 console.log("Checking for uncommitted changes...");
-const status = run("git status --porcelain", { silent: true });
+const status = runFile("git", ["status", "--porcelain"], { silent: true });
 if (status && status.trim()) {
 	console.error("Error: Uncommitted changes detected. Commit or stash first.");
 	console.error(status);
@@ -167,8 +181,8 @@ console.log();
 // 4. Commit and tag
 console.log("Committing and tagging...");
 stageChangedFiles();
-run(`git commit -m "Release v${version}"`);
-run(`git tag v${version}`);
+runFile("git", ["commit", "-m", `Release v${version}`]);
+runFile("git", ["tag", `v${version}`]);
 console.log();
 
 // 5. Publish
@@ -184,13 +198,13 @@ console.log();
 // 7. Commit
 console.log("Committing changelog updates...");
 stageChangedFiles();
-run(`git commit -m "Add [Unreleased] section for next cycle"`);
+runFile("git", ["commit", "-m", "Add [Unreleased] section for next cycle"]);
 console.log();
 
 // 8. Push
 console.log("Pushing to remote...");
-run("git push origin main");
-run(`git push origin v${version}`);
+runFile("git", ["push", "origin", "main"]);
+runFile("git", ["push", "origin", `v${version}`]);
 console.log();
 
 console.log(`=== Released v${version} ===`);

@@ -8,7 +8,7 @@ import { stderr, stdin } from "node:process";
 import { createInterface } from "node:readline/promises";
 import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
-import { getPackageDir } from "../../config.js";
+import { getAgentDataDir, getPackageDir, WINDOWS_APP_DIR_NAME } from "../../config.js";
 import type { PythonSkillRuntimeInfo } from "../skills.js";
 
 const BOOTSTRAP_SCHEMA = 8;
@@ -333,6 +333,8 @@ function ensureKernelPythonKey(pythonSkills: readonly BootstrapPythonSkill[]): s
 		process.env.PRIME_AGENT_KERNEL_VENV ?? "",
 		process.env.HOME ?? "",
 		process.env.XDG_DATA_HOME ?? "",
+		process.env.APPDATA ?? "",
+		process.env.LOCALAPPDATA ?? "",
 		JSON.stringify(pythonSkills),
 	].join("\0");
 }
@@ -340,7 +342,7 @@ function ensureKernelPythonKey(pythonSkills: readonly BootstrapPythonSkill[]): s
 export function getKernelVenvDir(): string {
 	const override = process.env.PRIME_AGENT_KERNEL_VENV;
 	if (override) return path.resolve(expandHome(override));
-	return path.join(os.homedir(), ".prime", "agent", "kernel-venv");
+	return path.join(getAgentDataDir(), "kernel-venv");
 }
 
 // The Python interpreter inside a uv-created venv lives under `bin/` on POSIX and
@@ -353,10 +355,18 @@ function venvPythonPath(venv: string): string {
 	);
 }
 
-function getXdgKernelVenvDir(): string {
-	const dataHome = process.env.XDG_DATA_HOME
-		? path.resolve(expandHome(process.env.XDG_DATA_HOME))
-		: path.join(os.homedir(), ".local", "share");
+export function getFallbackKernelVenvDir(
+	platform: NodeJS.Platform = process.platform,
+	environment: NodeJS.ProcessEnv = process.env,
+	homeDir: string = os.homedir(),
+): string {
+	if (platform === "win32") {
+		const localData = environment.LOCALAPPDATA || path.win32.join(homeDir, "AppData", "Local");
+		return path.win32.join(localData, WINDOWS_APP_DIR_NAME, "kernel-venv");
+	}
+	const dataHome = environment.XDG_DATA_HOME
+		? path.resolve(expandHome(environment.XDG_DATA_HOME))
+		: path.join(homeDir, ".local", "share");
 	return path.join(dataHome, "prime", "agent", "kernel-venv");
 }
 
@@ -370,7 +380,7 @@ async function resolveWritableKernelVenvDir(): Promise<string> {
 			throw new Error(`couldn't create kernel venv parent directory for ${primary}: ${errorMessage(primaryError)}`);
 		}
 
-		const fallback = getXdgKernelVenvDir();
+		const fallback = getFallbackKernelVenvDir();
 		try {
 			await mkdir(path.dirname(fallback), { recursive: true });
 			return fallback;

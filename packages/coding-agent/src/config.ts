@@ -498,6 +498,7 @@ export const VERSION: string = pkg.version || "0.0.0";
 export const ENV_AGENT_DIR = `${envPrefix}_CODING_AGENT_DIR`;
 export const ENV_SESSION_DIR = `${envPrefix}_SESSION_DIR`;
 export const ENV_LEGACY_SESSION_DIR = `${envPrefix}_CODING_AGENT_SESSION_DIR`;
+export const WINDOWS_APP_DIR_NAME = "Prime Agent";
 
 export function expandTildePath(path: string): string {
 	if (path === "~") return homedir();
@@ -514,16 +515,50 @@ export function getShareViewerUrl(gistId: string): string {
 }
 
 // =============================================================================
-// User Config Paths (~/.prime/agent/*)
+// User Config and Data Paths
 // =============================================================================
 
-/** Get the agent config directory (e.g., ~/.prime/agent/) */
+export interface DefaultAgentDirs {
+	configDir: string;
+	dataDir: string;
+}
+
+export function getDefaultAgentDirs(
+	platform: NodeJS.Platform = process.platform,
+	environment: NodeJS.ProcessEnv = process.env,
+	homeDir: string = homedir(),
+	pathExists: (path: string) => boolean = existsSync,
+): DefaultAgentDirs {
+	const legacyDir =
+		platform === "win32" ? win32.join(homeDir, ...CONFIG_DIR_NAME.split(/[\\/]+/)) : join(homeDir, CONFIG_DIR_NAME);
+	if (platform !== "win32" || pathExists(legacyDir)) {
+		return { configDir: legacyDir, dataDir: legacyDir };
+	}
+
+	const roamingBase = environment.APPDATA || win32.join(homeDir, "AppData", "Roaming");
+	const localBase = environment.LOCALAPPDATA || win32.join(homeDir, "AppData", "Local");
+	return {
+		configDir: win32.join(roamingBase, WINDOWS_APP_DIR_NAME),
+		dataDir: win32.join(localBase, WINDOWS_APP_DIR_NAME),
+	};
+}
+
+/** Get the agent config directory. */
 export function getAgentDir(): string {
 	const envDir = process.env[ENV_AGENT_DIR];
 	if (envDir) {
 		return expandTildePath(envDir);
 	}
-	return join(homedir(), CONFIG_DIR_NAME);
+	return getDefaultAgentDirs().configDir;
+}
+
+/** Get the directory for machine-local logs, tools, sessions, and caches. */
+export function getAgentDataDir(): string {
+	const envDir = process.env[ENV_AGENT_DIR];
+	if (envDir) {
+		return expandTildePath(envDir);
+	}
+	return getDefaultAgentDirs().dataDir;
 }
 
 /** Get path to user's custom themes directory */
@@ -531,9 +566,9 @@ export function getCustomThemesDir(): string {
 	return join(getAgentDir(), "themes");
 }
 
-/** Directory where daemon and client diagnostic logs are written (e.g. ~/.prime/agent/logs/). */
+/** Directory where daemon and client diagnostic logs are written. */
 export function getLogsDir(): string {
-	return join(getAgentDir(), "logs");
+	return join(getAgentDataDir(), "logs");
 }
 
 /** Log file capturing client-side agent-open failures. */
@@ -560,13 +595,13 @@ export function getDaemonLogPath(socketPath: string): string {
 	return join(getLogsDir(), `${basename(socketPath)}.${hash}.log`);
 }
 
-export function getDaemonUpdateRestartManifestPath(socketPath: string, agentDir: string = getAgentDir()): string {
+export function getDaemonUpdateRestartManifestPath(socketPath: string, agentDir: string = getAgentDataDir()): string {
 	const normalizedSocketPath = process.platform === "win32" ? socketPath.toLowerCase() : resolve(socketPath);
 	const socketHash = createHash("sha256").update(normalizedSocketPath).digest("hex");
 	return join(agentDir, "daemon-update-restarts", `${socketHash}.json`);
 }
 
-export function getLegacyDaemonUpdateRestartManifestPath(agentDir: string = getAgentDir()): string {
+export function getLegacyDaemonUpdateRestartManifestPath(agentDir: string = getAgentDataDir()): string {
 	return join(agentDir, "daemon-update-restart.json");
 }
 
@@ -618,12 +653,12 @@ export function getCronJobsPath(agentDir: string = getAgentDir()): string {
 
 /** Get path to tools directory */
 export function getToolsDir(): string {
-	return join(getAgentDir(), "tools");
+	return join(getAgentDataDir(), "tools");
 }
 
 /** Get path to managed binaries directory (fd, rg) */
 export function getBinDir(): string {
-	return join(getAgentDir(), "bin");
+	return join(getAgentDataDir(), "bin");
 }
 
 /** Get path to prompt templates directory */
@@ -632,12 +667,22 @@ export function getPromptsDir(): string {
 }
 
 /** Get path to sessions directory */
-export function getSessionsDir(agentDir: string = getAgentDir()): string {
+export function getSessionsDir(agentDir?: string): string {
 	const envDir = getSessionDirEnvOverride();
 	if (envDir) {
 		return envDir;
 	}
-	return join(agentDir, "sessions");
+	const configDir = getAgentDir();
+	const requestedDir = agentDir ? resolve(agentDir) : undefined;
+	const normalizedRequestedDir = process.platform === "win32" ? requestedDir?.toLowerCase() : requestedDir;
+	const normalizedConfigDir = process.platform === "win32" ? resolve(configDir).toLowerCase() : resolve(configDir);
+	let baseDir: string;
+	if (!agentDir || normalizedRequestedDir === normalizedConfigDir) {
+		baseDir = getAgentDataDir();
+	} else {
+		baseDir = agentDir;
+	}
+	return join(baseDir, "sessions");
 }
 
 export function getSessionDirEnvOverride(): string | undefined {
@@ -647,5 +692,5 @@ export function getSessionDirEnvOverride(): string | undefined {
 
 /** Get path to debug log file */
 export function getDebugLogPath(): string {
-	return join(getAgentDir(), `${APP_NAME}-debug.log`);
+	return join(getAgentDataDir(), `${APP_NAME}-debug.log`);
 }

@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -9,10 +9,18 @@ const mainCallIndex = installerSource.lastIndexOf(mainCall);
 const ansiPattern = /\x1b\[[0-?]*[ -/]*[@-~]/g;
 const syncEnd = "\x1b[?2026l";
 const failures = [];
+const installerShell = resolveInstallerShell();
 
 if (mainCallIndex === -1) {
 	console.error('Installer render check failed: could not find final main "$@" call.');
 	process.exit(1);
+}
+
+if (!installerShell) {
+	console.log(
+		"Installer render check skipped: no POSIX shell found. Install Git for Windows or set PRIME_AGENT_INSTALLER_SHELL to bash.exe.",
+	);
+	process.exit(0);
 }
 
 const harnessSource = `${installerSource.slice(0, mainCallIndex)}
@@ -164,9 +172,9 @@ if (failures.length > 0) {
 console.log("Installer render check passed.");
 
 function runCase(name, initialCols, initialRows, resizedCols, resizedRows) {
-	const result = spawnSync("sh", [harnessPath, String(initialCols), String(initialRows), String(resizedCols), String(resizedRows)], {
-		detached: true,
+	const result = spawnSync(installerShell, [harnessPath, String(initialCols), String(initialRows), String(resizedCols), String(resizedRows)], {
 		encoding: "utf-8",
+		windowsHide: true,
 	});
 	if (result.status !== 0) {
 		failures.push(`${name}: harness exited with ${result.status ?? "unknown"}\n${result.stderr}${result.stdout}`);
@@ -312,4 +320,35 @@ function emptyParsedCase() {
 		screens: {},
 		progress: [],
 	};
+}
+
+function resolveInstallerShell() {
+	const configured = process.env.PRIME_AGENT_INSTALLER_SHELL;
+	if (configured) {
+		return configured;
+	}
+	if (process.platform !== "win32") {
+		return "sh";
+	}
+
+	const candidates = [
+		process.env.LOCALAPPDATA && join(process.env.LOCALAPPDATA, "Programs", "Git", "bin", "bash.exe"),
+		process.env.LOCALAPPDATA && join(process.env.LOCALAPPDATA, "Git", "bin", "bash.exe"),
+		process.env.ProgramFiles && join(process.env.ProgramFiles, "Git", "bin", "bash.exe"),
+		process.env["ProgramFiles(x86)"] && join(process.env["ProgramFiles(x86)"], "Git", "bin", "bash.exe"),
+	].filter(Boolean);
+	const knownInstall = candidates.find((candidate) => existsSync(candidate));
+	if (knownInstall) {
+		return knownInstall;
+	}
+
+	const pathLookup = spawnSync("where.exe", ["sh.exe"], {
+		encoding: "utf-8",
+		stdio: ["ignore", "pipe", "ignore"],
+		windowsHide: true,
+	});
+	if (pathLookup.status !== 0) {
+		return undefined;
+	}
+	return pathLookup.stdout.split(/\r?\n/).find((candidate) => candidate.length > 0);
 }

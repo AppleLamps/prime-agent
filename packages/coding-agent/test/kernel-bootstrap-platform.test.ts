@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { getUvCandidatePaths, getUvInstallCommand } from "../src/core/kernel/bootstrap.js";
+import { getFallbackKernelVenvDir, getUvCandidatePaths, getUvInstallCommand } from "../src/core/kernel/bootstrap.js";
 
 describe("Windows uv bootstrap", () => {
 	it("uses the official PowerShell installer", () => {
@@ -21,5 +21,11 @@ describe("Windows uv bootstrap", () => {
 			join(homeDir, "scoop", "shims", "uv.exe"),
 			join(homeDir, ".cargo", "bin", "uv.exe"),
 		]);
+	});
+
+	it("uses LocalAppData for the Windows fallback kernel environment", () => {
+		expect(
+			getFallbackKernelVenvDir("win32", { LOCALAPPDATA: "C:\\Users\\tester\\AppData\\Local" }, "C:\\Users\\tester"),
+		).toBe("C:\\Users\\tester\\AppData\\Local\\Prime Agent\\kernel-venv");
 	});
 });

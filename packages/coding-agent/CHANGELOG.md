@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Fixed fresh Windows installations storing roaming configuration and machine-local data in the appropriate AppData directories while preserving legacy installs.
+- Fixed Herdr reports omitting Windows absolute session file paths.
 - Fixed quoted Windows `$EDITOR` and `$VISUAL` executable paths being split into invalid commands.
 - Fixed session deletion bypassing the Windows Recycle Bin when no external `trash` command was installed.
 - Fixed per-user Git for Windows installations not being detected outside `PATH`.

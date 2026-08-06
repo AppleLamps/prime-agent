@@ -69,6 +69,72 @@ platform (`Scripts\python.exe` on win32, `bin/python` elsewhere).
 
 ## Improvements
 
+### 2026-08-05 — Report Windows session paths to Herdr
+
+**Problem:** Herdr accepted session file references only when they began with
+`/`, so absolute Windows paths were omitted from lifecycle reports.
+
+**Fix:** Replaced the POSIX prefix check with the platform-aware absolute path
+check from Node.js.
+
+**Files:**
+- `packages/coding-agent/src/core/extensions/builtin/herdr-agent-state.ts` —
+  accepted Windows absolute session paths
+
+**Verify:** Start Prime Agent from a Herdr pane on Windows and confirm lifecycle
+reports include `agent_session_path` with the session's drive-letter path.
+
+### 2026-08-05 — Use Windows AppData directories for fresh installs
+
+**Problem:** Configuration, logs, tools, sessions, and kernel environments used
+POSIX-style dot directories under `%USERPROFILE%` on Windows.
+
+**Fix:** Fresh installs now use `%APPDATA%\Prime Agent` for roaming
+configuration and `%LOCALAPPDATA%\Prime Agent` for machine-local data. Existing
+`.prime\agent` installs and explicit directory overrides remain in place.
+
+**Files:**
+- `packages/coding-agent/src/config.ts` — split fresh Windows configuration and
+  local-data defaults while preserving legacy installs
+- `packages/coding-agent/src/core/kernel/bootstrap.ts` — placed fresh Windows
+  kernel environments and their fallback under local AppData
+
+**Verify:** On a Windows profile without `.prime\agent`, start Prime Agent and
+confirm settings are created under `%APPDATA%\Prime Agent` while logs, tools,
+sessions, and `kernel-venv` use `%LOCALAPPDATA%\Prime Agent`.
+
+### 2026-08-05 — Stage release files without POSIX shell quoting
+
+**Problem:** The release script single-quoted file names for a POSIX shell even
+though Node uses `cmd.exe` by default on Windows.
+
+**Fix:** Release staging now invokes Git directly with an argument array, so
+spaces and shell-sensitive characters are passed without shell parsing.
+
+**Files:**
+- `scripts/release.mjs` — replaced constructed `git add` commands with
+  `execFileSync()` argument arrays
+
+**Verify:** Run the release staging flow with a changed file whose path contains
+spaces and confirm Git stages the exact file on Windows.
+
+### 2026-08-05 — Run installer checks with Git Bash on Windows
+
+**Problem:** The mandatory installer render check directly spawned `sh`, which
+is absent from a normal Windows Node environment.
+
+**Fix:** The check now resolves configured, per-user, system, or `PATH` Git Bash
+installations. If no POSIX shell exists, it skips only the shell-installer render
+check with a clear diagnostic.
+
+**Files:**
+- `scripts/check-installer-render.mjs` — added Windows shell discovery and a
+  clear no-shell skip
+
+**Verify:** Run `npm run check` on Windows with Git Bash outside `PATH`, then on
+a machine without a POSIX shell; the installer check should run in the first
+case and explicitly skip in the second.
+
 ### 2026-08-05 — Parse quoted Windows editor commands
 
 **Problem:** External editor commands were split on spaces, breaking quoted

@@ -17,7 +17,7 @@
  */
 
 import { createConnection } from "node:net";
-import { basename } from "node:path";
+import { basename, isAbsolute } from "node:path";
 import type { ExtensionAPI, ExtensionFactory } from "../types.js";
 
 type AgentState = "working" | "blocked" | "idle";
@@ -40,6 +40,10 @@ export function hasFileBasedHerdrIntegration(loadedExtensionPaths: string[]): bo
 		const base = basename(path);
 		return base === "herdr-agent-state.ts" || base === "herdr-agent-state.js";
 	});
+}
+
+export function isAbsoluteSessionPath(file: unknown): file is string {
+	return typeof file === "string" && isAbsolute(file);
 }
 
 interface QueuedState {
@@ -191,7 +195,7 @@ function herdrAgentStateExtensionImpl(pi: ExtensionAPI, getLoadedExtensionPaths:
 	function updateSessionRef(ctx: any): void {
 		try {
 			const file = ctx?.sessionManager?.getSessionFile?.();
-			currentAgentSessionPath = typeof file === "string" && file.startsWith("/") ? file : undefined;
+			currentAgentSessionPath = isAbsoluteSessionPath(file) ? file : undefined;
 		} catch {
 			currentAgentSessionPath = undefined;
 		}
