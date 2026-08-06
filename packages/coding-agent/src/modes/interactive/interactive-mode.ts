@@ -129,6 +129,7 @@ import { PRIME_BUTTERFLY_LOGO } from "../../themes/prime-logo.js";
 import { getChangelogPath, parseChangelog } from "../../utils/changelog.js";
 import { copyToClipboard } from "../../utils/clipboard.js";
 import { readClipboardImage } from "../../utils/clipboard-image.js";
+import { createEditorLaunchCommand } from "../../utils/editor-command.js";
 import { parseGitUrl } from "../../utils/git.js";
 import { resizeImage } from "../../utils/image-resize.js";
 import { getCwdRelativePath } from "../../utils/paths.js";
@@ -7004,13 +7005,11 @@ export class InteractiveMode {
 			// Stop TUI to release terminal
 			this.ui.stop();
 
-			// Split by space to support editor arguments (e.g., "code --wait")
-			const [editor, ...editorArgs] = editorCmd.split(" ");
+			const launch = createEditorLaunchCommand(editorCmd, tmpFile);
 
 			// Spawn editor synchronously with inherited stdio for interactive editing
-			const result = spawnSync(editor, [...editorArgs, tmpFile], {
+			const result = spawnSync(launch.command, launch.args, {
 				stdio: "inherit",
-				shell: process.platform === "win32",
 			});
 
 			// On successful exit (status 0), replace editor content

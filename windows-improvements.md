@@ -69,6 +69,57 @@ platform (`Scripts\python.exe` on win32, `bin/python` elsewhere).
 
 ## Improvements
 
+### 2026-08-05 — Parse quoted Windows editor commands
+
+**Problem:** External editor commands were split on spaces, breaking quoted
+executable paths such as Visual Studio Code under `Program Files`.
+
+**Fix:** Added shared Windows command-line parsing and now launch the parsed
+executable and arguments directly without a shell.
+
+**Files:**
+- `packages/coding-agent/src/utils/editor-command.ts` — added Windows and POSIX
+  editor command parsing
+- `packages/coding-agent/src/modes/interactive/interactive-mode.ts` — used the
+  shared parsed launch command
+- `packages/coding-agent/src/modes/interactive/components/extension-editor.ts`
+  — used the shared parsed launch command
+
+**Verify:** Set `$EDITOR` to
+`"C:\Program Files\Microsoft VS Code\Code.exe" --wait` and open either external
+editor; Code should receive the temporary file path.
+
+### 2026-08-05 — Move deleted sessions to the Windows Recycle Bin
+
+**Problem:** Session deletion depended on an external `trash` executable. When
+it was missing on Windows, the session file was permanently unlinked.
+
+**Fix:** Added the cross-platform `trash` library and removed automatic permanent
+deletion fallback. If recycling fails, the session and its artifacts remain
+unchanged and an error is returned.
+
+**Files:**
+- `packages/coding-agent/src/core/session-file-actions.ts` — moved session files
+  through the platform recycle API without an unlink fallback
+- `packages/coding-agent/package.json` — added the `trash` runtime dependency
+
+**Verify:** Delete a saved session on Windows and restore it from the Recycle
+Bin. Simulate a recycle failure and confirm the session and artifacts remain.
+
+### 2026-08-05 — Detect per-user Git Bash installations
+
+**Problem:** Git Bash discovery checked system installations and `PATH`, but not
+per-user Git for Windows locations under `%LOCALAPPDATA%`.
+
+**Fix:** Added both `%LOCALAPPDATA%\Programs\Git\bin\bash.exe` and
+`%LOCALAPPDATA%\Git\bin\bash.exe` to discovery and error diagnostics.
+
+**Files:**
+- `packages/coding-agent/src/utils/shell.ts` — added per-user Git Bash candidates
+
+**Verify:** Install Git for Windows per-user without adding it to `PATH`; the
+Bash tool should resolve the user-local `bash.exe`.
+
 ### 2026-08-05 — Compare Windows resource paths case-insensitively
 
 **Problem:** Resource identity and containment checks compared path strings with

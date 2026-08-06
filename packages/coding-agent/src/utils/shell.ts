@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { delimiter } from "node:path";
+import { delimiter, join } from "node:path";
 import { spawnSync } from "child_process";
 import { getBinDir } from "../config.js";
 import { recordOrphanProcessState } from "../core/orphan-process-journal.js";
@@ -8,6 +8,23 @@ import { signalProcessGroupOrProcess } from "./child-process.js";
 export interface ShellConfig {
 	shell: string;
 	args: string[];
+}
+
+export function getWindowsGitBashPaths(environment: NodeJS.ProcessEnv = process.env): string[] {
+	const paths: string[] = [];
+	if (environment.LOCALAPPDATA) {
+		paths.push(
+			join(environment.LOCALAPPDATA, "Programs", "Git", "bin", "bash.exe"),
+			join(environment.LOCALAPPDATA, "Git", "bin", "bash.exe"),
+		);
+	}
+	if (environment.ProgramFiles) {
+		paths.push(join(environment.ProgramFiles, "Git", "bin", "bash.exe"));
+	}
+	if (environment["ProgramFiles(x86)"]) {
+		paths.push(join(environment["ProgramFiles(x86)"], "Git", "bin", "bash.exe"));
+	}
+	return paths;
 }
 
 /**
@@ -63,15 +80,7 @@ export function getShellConfig(customShellPath?: string): ShellConfig {
 
 	if (process.platform === "win32") {
 		// 2. Try Git Bash in known locations
-		const paths: string[] = [];
-		const programFiles = process.env.ProgramFiles;
-		if (programFiles) {
-			paths.push(`${programFiles}\\Git\\bin\\bash.exe`);
-		}
-		const programFilesX86 = process.env["ProgramFiles(x86)"];
-		if (programFilesX86) {
-			paths.push(`${programFilesX86}\\Git\\bin\\bash.exe`);
-		}
+		const paths = getWindowsGitBashPaths();
 
 		for (const path of paths) {
 			if (existsSync(path)) {

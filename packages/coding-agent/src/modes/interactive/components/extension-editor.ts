@@ -18,6 +18,7 @@ import {
 	type TUI,
 } from "@earendil-works/pi-tui";
 import type { KeybindingsManager } from "../../../core/keybindings.js";
+import { createEditorLaunchCommand } from "../../../utils/editor-command.js";
 import { getEditorTheme, theme } from "../theme/theme.js";
 import { DynamicBorder } from "./dynamic-border.js";
 import { keyHint } from "./keybinding-hints.js";
@@ -123,10 +124,9 @@ export class ExtensionEditorComponent extends Container implements Focusable {
 			fs.writeFileSync(tmpFile, currentText, "utf-8");
 			this.tui.stop();
 
-			const [editor, ...editorArgs] = editorCmd.split(" ");
-			const result = spawnSync(editor, [...editorArgs, tmpFile], {
+			const launch = createEditorLaunchCommand(editorCmd, tmpFile);
+			const result = spawnSync(launch.command, launch.args, {
 				stdio: "inherit",
-				shell: process.platform === "win32",
 			});
 
 			if (result.status === 0) {
