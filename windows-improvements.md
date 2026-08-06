@@ -69,6 +69,33 @@ platform (`Scripts\python.exe` on win32, `bin/python` elsewhere).
 
 ## Improvements
 
+### 2026-08-05 — Hide remaining chat and agent helper processes
+
+**Problem:** Starting a chat or agent could briefly flash a PowerShell or console
+window because catalog, owned-worker, session-lease, Git, shell, and managed-tool
+probes still launched visible Windows child processes.
+
+**Fix:** Added `windowsHide: true` to the remaining background process launches
+used by normal chat startup and agent creation.
+
+**Files:**
+- `packages/coding-agent/src/modes/daemon/daemon-catalog-process.ts` — hid the
+  persistent catalog helper
+- `packages/coding-agent/src/cli/owned-session-worker.ts` — hid isolated session
+  workers
+- `packages/coding-agent/src/core/session-lease.ts` — hid PowerShell process
+  identity queries
+- `packages/coding-agent/src/core/footer-data-provider.ts` — hid Git branch
+  probes
+- `packages/coding-agent/src/config.ts` — hid package-manager discovery probes
+- `packages/coding-agent/src/utils/git.ts` — hid Git context probes
+- `packages/coding-agent/src/utils/shell.ts` — hid shell discovery probes
+- `packages/coding-agent/src/utils/tools-manager.ts` — hid managed-tool probes
+  and extraction
+
+**Verify:** Start a fresh chat, launch agents, and send messages on Windows; no
+PowerShell or console windows should flash.
+
 ### 2026-08-05 — Report Windows session paths to Herdr
 
 **Problem:** Herdr accepted session file references only when they began with

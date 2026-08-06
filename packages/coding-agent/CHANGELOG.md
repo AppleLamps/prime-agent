@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- Fixed remaining Windows console flashes when starting chats, agent workers, session leases, catalog helpers, and startup probes.
 - Fixed fresh Windows installations storing roaming configuration and machine-local data in the appropriate AppData directories while preserving legacy installs.
 - Fixed Herdr reports omitting Windows absolute session file paths.
 - Fixed quoted Windows `$EDITOR` and `$VISUAL` executable paths being split into invalid commands.
