@@ -28,6 +28,9 @@ Prime Agent: A Self-Improving RLM Agent
   </a>
 </p>
 
+> [!NOTE]
+> This repository is a fork of [PrimeIntellect-ai/prime-agent](https://github.com/PrimeIntellect-ai/prime-agent), maintained to make Prime Agent run better on native Windows. It preserves the upstream project while adding Windows compatibility, lifecycle, path, process, and installation improvements. See [Windows Improvements](windows-improvements.md) for the maintained differences.
+
 Prime Agent is an open-source coding and research agent for general and long-running work. It is designed around two core abstractions:
 
 - The **[Recursive Language Model (RLM)](https://www.primeintellect.ai/blog/rlm)** treats context as variables (*prompt-as-a-variable*) and tools like recursive subagents as function calls (*programmatic tool /sub-agent calling*) inside a persistent REPL.
@@ -89,6 +92,8 @@ Prime Agent is built for long-running work, especially for evaluations in resear
 
 ## Documentation
 
+- [Windows setup](packages/coding-agent/docs/windows.md) — native Windows requirements and configuration
+- [Windows improvements](windows-improvements.md) — changes maintained by this Windows-focused fork
 - [Quickstart](packages/coding-agent/docs/quickstart.md) — install, authenticate, and run a first session
 - [Usage and CLI reference](packages/coding-agent/docs/usage.md) — commands, sessions, autonomous limits, and output modes
 - [Long-running and background agents](packages/coding-agent/docs/long-running-agents.md) — detach and reattach, goals, heartbeats, and schedules

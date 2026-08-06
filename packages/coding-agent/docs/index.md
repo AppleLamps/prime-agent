@@ -1,5 +1,8 @@
 # Prime Agent Documentation
 
+> [!NOTE]
+> These docs are maintained in a fork of [PrimeIntellect-ai/prime-agent](https://github.com/PrimeIntellect-ai/prime-agent) focused on improving native Windows support. See [Windows setup](windows.md) for usage guidance and [Windows Improvements](../../../windows-improvements.md) for the fork's maintained changes.
+
 Prime Agent is an RLM-native coding and research harness built around a persistent IPython kernel, recursive subagents, durable sessions, and a multi-process local runtime. It began as a hard fork of pi-mono, but Prime Agent is now the product, CLI, install source, and development repository.
 
 ## Quick Start

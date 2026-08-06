@@ -1,5 +1,12 @@
 # Development Rules
 
+## Fork Scope
+
+- This repository is a Windows-focused fork of [PrimeIntellect-ai/prime-agent](https://github.com/PrimeIntellect-ai/prime-agent).
+- Preserve upstream behavior while improving native Windows compatibility, installation, paths, process lifecycle, terminal behavior, and developer workflows.
+- Record Windows-specific fixes in `windows-improvements.md` and keep user-facing Windows guidance in `packages/coding-agent/docs/windows.md` current.
+- When comparing or porting changes, treat `PrimeIntellect-ai/prime-agent` as the immediate upstream repository. The older `pi-mono` project remains part of Prime Agent's historical lineage.
+
 ## Conversational Style
 
 - No fluff or cheerful filler text

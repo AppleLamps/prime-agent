@@ -1,7 +1,10 @@
 # Windows Improvements
 
-This file tracks improvements made to make Prime Agent work better on Windows.
-Each entry documents a specific fix, the files it touched, and how to verify it.
+This repository is a Windows-focused fork of
+[PrimeIntellect-ai/prime-agent](https://github.com/PrimeIntellect-ai/prime-agent).
+This file tracks the compatibility and usability improvements maintained by the
+fork to make Prime Agent run better on native Windows. Each entry documents a
+specific fix, the files it touched, and how to verify it.
 
 ---
 

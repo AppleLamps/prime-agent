@@ -1,5 +1,11 @@
 # Windows Setup
 
+This repository is a Windows-focused fork of
+[PrimeIntellect-ai/prime-agent](https://github.com/PrimeIntellect-ai/prime-agent).
+It retains the upstream agent while maintaining additional fixes for native
+Windows installation, paths, process lifecycle, and terminal behavior. The full
+change record is in [Windows Improvements](../../../windows-improvements.md).
+
 Prime Agent requires a bash shell on Windows. Checked locations (in order):
 
 1. Custom path from `~/.prime/agent/settings.json`

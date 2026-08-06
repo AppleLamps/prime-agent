@@ -13,6 +13,9 @@
   RLM-native terminal coding and research harness.
 </p>
 
+> [!NOTE]
+> This package is maintained in a fork of [PrimeIntellect-ai/prime-agent](https://github.com/PrimeIntellect-ai/prime-agent) focused on better native Windows support. The fork retains upstream behavior while improving Windows installation, paths, process lifecycle, terminal behavior, and development workflows. See the root [Windows Improvements](../../windows-improvements.md) document for the maintained differences.
+
 Prime Agent began as a hard fork of [pi-mono](https://github.com/badlogic/pi-mono), but it is now developed and distributed independently. This workspace retains inherited `@earendil-works/pi-*` source package identifiers, the `pi` package manifest key, and a source-package `pi` bin entry for internal compatibility. Public releases are currently versioned tarball artifacts installed by the scripts below; release packaging rewrites the application package and command to `prime-agent`. Do not use the inherited npm package as the Prime Agent install path.
 
 ## Table of Contents
@@ -480,7 +483,9 @@ See [docs/rpc.md](docs/rpc.md) for the protocol.
 
 ## Upstream
 
-Prime Agent is forked from [pi-mono](https://github.com/badlogic/pi-mono) by Mario Zechner and keeps MIT attribution in the root license.
+The immediate upstream for this Windows-focused fork is [PrimeIntellect-ai/prime-agent](https://github.com/PrimeIntellect-ai/prime-agent).
+
+Prime Agent itself was forked from [pi-mono](https://github.com/badlogic/pi-mono) by Mario Zechner and keeps MIT attribution in the root license.
 
 The package architecture, extension model, and source package names still reflect that upstream lineage while the distributed command and release artifacts are branded for Prime Agent.
 
