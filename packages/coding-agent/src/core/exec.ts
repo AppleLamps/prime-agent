@@ -3,7 +3,7 @@
  */
 
 import { spawn } from "node:child_process";
-import { waitForChildProcess } from "../utils/child-process.js";
+import { signalProcessGroupOrProcess, waitForChildProcess } from "../utils/child-process.js";
 
 /**
  * Options for executing shell commands.
@@ -65,6 +65,7 @@ export async function execCommand(
 			// Merge per-call env over the parent env so callers can scope vars
 			// (e.g. herdr pane identity) without mutating the shared process.env.
 			env: mergeExecEnv(options?.env),
+			windowsHide: true,
 		});
 
 		let stdout = "";
@@ -76,12 +77,16 @@ export async function execCommand(
 		const killProcess = () => {
 			if (!killed) {
 				killed = true;
-				proc.kill("SIGTERM");
+				if (proc.pid !== undefined) {
+					signalProcessGroupOrProcess(proc.pid, "SIGTERM");
+				}
 				// Force kill after 5 seconds if SIGTERM doesn't work
 				forceKillTimeoutId = setTimeout(() => {
 					forceKillTimeoutId = undefined;
 					if (proc.exitCode === null && proc.signalCode === null) {
-						proc.kill("SIGKILL");
+						if (proc.pid !== undefined) {
+							signalProcessGroupOrProcess(proc.pid, "SIGKILL");
+						}
 					}
 				}, 5000);
 			}

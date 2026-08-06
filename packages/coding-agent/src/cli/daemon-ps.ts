@@ -12,7 +12,10 @@ import {
 	type DaemonRuntimeIdentity,
 } from "../modes/daemon/daemon-protocol.js";
 import { defaultDaemonSocketDir, defaultDaemonSocketPath } from "../modes/daemon/daemon-socket.js";
-import { acquireDaemonShutdownAdmission } from "../modes/daemon/daemon-supervisor-ownership.js";
+import {
+	acquireDaemonShutdownAdmission,
+	listDaemonSupervisorOwners,
+} from "../modes/daemon/daemon-supervisor-ownership.js";
 import type { DaemonWorkerDescriptor } from "../modes/daemon/daemon-worker-protocol.js";
 import { signalProcessGroupOrProcess } from "../utils/child-process.js";
 import { formatDaemonListTable } from "./daemon-ps-format.js";
@@ -53,7 +56,7 @@ export interface DaemonInfo {
 	schemaId?: string;
 	buildId?: string;
 	executablePath?: string;
-	pidSource?: "listener" | "hello";
+	pidSource?: "listener" | "hello" | "owner";
 	sessionCount?: number;
 	status: DaemonStatus;
 	isDefault: boolean;
@@ -80,11 +83,21 @@ export function evaluateShutdownQuietPeriod(now: number, quietSince: number | un
 const MAX_COMM_LENGTH = 15;
 
 /** Normalize a socket path so process-scan and dir-sweep entries merge cleanly. */
-function normalizeSocketPath(socketPath: string): string {
-	if (process.platform === "win32") {
-		return socketPath;
+export function normalizeSocketPath(socketPath: string, platform: NodeJS.Platform = process.platform): string {
+	if (platform === "win32") {
+		return socketPath.toLowerCase();
 	}
 	return resolve(socketPath);
+}
+
+export function collectDaemonSocketCandidates(
+	platform: NodeJS.Platform,
+	defaultSocket: string,
+	...groups: readonly string[][]
+): string[] {
+	return [
+		...new Set([defaultSocket, ...groups.flat()].map((socketPath) => normalizeSocketPath(socketPath, platform))),
+	];
 }
 
 function processNameMatches(name: string, appName: string): boolean {
@@ -354,24 +367,44 @@ export async function discoverDaemons(): Promise<DaemonInfo[]> {
 	const workerSockets = new Set(
 		findAllTrackedWorkers().map((worker) => normalizeSocketPath(worker.descriptor.supervisorSocketPath)),
 	);
-	const sockets = new Set<string>([
-		...processBySocket.keys(),
-		...scanSocketDir().filter((socketPath) => !isWorkerSocketPath(socketPath)),
-		...workerSockets,
-	]);
 	const defaultSocket = normalizeSocketPath(defaultDaemonSocketPath());
+	const socketFiles = new Set(scanSocketDir().filter((socketPath) => !isWorkerSocketPath(socketPath)));
+	const ownersBySocket = new Map(
+		listDaemonSupervisorOwners().map((owner) => [normalizeSocketPath(owner.socketPath), owner]),
+	);
+	const sockets = collectDaemonSocketCandidates(
+		process.platform,
+		defaultSocket,
+		[...processBySocket.keys()],
+		[...socketFiles],
+		[...workerSockets],
+		[...ownersBySocket.keys()],
+	);
 
 	const infos = await Promise.all(
-		[...sockets].map(async (socketPath): Promise<DaemonInfo> => {
+		sockets.map(async (socketPath): Promise<DaemonInfo | undefined> => {
 			const proc = processBySocket.get(socketPath);
+			const owner = ownersBySocket.get(socketPath);
 			const probe = await probeDaemon(socketPath);
-			const pid = proc?.pid ?? verifyHelloSupervisorPid(probe.supervisorPid, probe.supervisorProcessStartId);
+			const helloPid = verifyHelloSupervisorPid(probe.supervisorPid, probe.supervisorProcessStartId);
+			const ownerPid = owner ? verifyHelloSupervisorPid(owner.pid, owner.processStartId) : undefined;
+			const pid = proc?.pid ?? helloPid ?? ownerPid;
 			const hasTrackedWorkers = workerSockets.has(socketPath);
+			if (!probe.reachable && !proc && !hasTrackedWorkers && !socketFiles.has(socketPath) && !owner) {
+				return undefined;
+			}
 			const status: DaemonStatus = probe.reachable
 				? classifyReachable(probe)
-				: proc || hasTrackedWorkers
+				: proc || hasTrackedWorkers || owner
 					? "unreachable"
 					: "orphan-file";
+			const pidSource = proc
+				? "listener"
+				: helloPid !== undefined
+					? "hello"
+					: ownerPid !== undefined
+						? "owner"
+						: undefined;
 			return {
 				socketPath,
 				pid,
@@ -382,7 +415,7 @@ export async function discoverDaemons(): Promise<DaemonInfo[]> {
 				buildId: probe.runtime?.buildId,
 				executablePath:
 					probe.runtime?.launcherPath ?? probe.runtime?.entrypointPath ?? probe.runtime?.executablePath,
-				...(pid !== undefined ? { pidSource: proc ? ("listener" as const) : ("hello" as const) } : {}),
+				...(pidSource ? { pidSource } : {}),
 				sessionCount: probe.sessionCount,
 				status,
 				isDefault: socketPath === defaultSocket,
@@ -391,7 +424,7 @@ export async function discoverDaemons(): Promise<DaemonInfo[]> {
 		}),
 	);
 
-	return sortDaemons(infos);
+	return sortDaemons(infos.filter((info): info is DaemonInfo => info !== undefined));
 }
 
 export function sortDaemons(infos: DaemonInfo[]): DaemonInfo[] {

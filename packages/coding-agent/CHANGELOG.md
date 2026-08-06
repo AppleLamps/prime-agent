@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- Fixed command cancellation on Windows leaving descendant processes running by terminating the full process tree with hidden `taskkill` escalation.
+- Fixed daemon discovery on Windows by probing the default named pipe and durable custom supervisor owner records with case-insensitive pipe normalization.
+- Fixed kernel bootstrap on Windows automatically installing and locating `uv` with the official PowerShell installer.
 - Fixed kernel bootstrap failing on Windows by resolving the venv Python interpreter from `Scripts\python.exe` instead of the POSIX-only `bin/python` path.
 - Fixed the daemon command recovery journal crashing on Windows with `EPERM: operation not permitted, fsync` by guarding the directory fsync, which is unsupported on Windows.
 - Fixed flashing console windows on Windows when spawning the bash tool, IPython kernel, fork server, and bootstrap commands by setting `windowsHide: true` on child process spawns.

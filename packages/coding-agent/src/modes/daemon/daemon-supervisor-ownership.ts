@@ -48,6 +48,12 @@ interface DaemonSupervisorOwnerRecord extends ProcessIdentity {
 	updatedAt: string;
 }
 
+export interface DaemonSupervisorOwnerDiscoveryRecord {
+	socketPath: string;
+	pid: number;
+	processStartId?: string;
+}
+
 interface DaemonShutdownAdmissionRecord extends ProcessIdentity {
 	version: 1;
 	token: string;
@@ -248,6 +254,30 @@ class DaemonShutdownAdmission {
 
 function defaultDaemonSupervisorRegistryDir(environment: NodeJS.ProcessEnv = process.env): string {
 	return environment[DAEMON_SUPERVISOR_REGISTRY_DIR_ENV] ?? resolve(defaultDaemonSocketDir(), "supervisor-owners");
+}
+
+export function listDaemonSupervisorOwners(
+	registryDir: string = defaultDaemonSupervisorRegistryDir(),
+): DaemonSupervisorOwnerDiscoveryRecord[] {
+	try {
+		return listOwnerDirectories(registryDir).flatMap((directory) => {
+			const owner = readOwnerRecord(directory);
+			return owner
+				? [
+						{
+							socketPath: owner.socketPath,
+							pid: owner.pid,
+							...(owner.processStartId ? { processStartId: owner.processStartId } : {}),
+						},
+					]
+				: [];
+		});
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+			return [];
+		}
+		throw error;
+	}
 }
 
 async function withDaemonSupervisorRegistryGuard<T>(registryDir: string, action: () => T | Promise<T>): Promise<T> {

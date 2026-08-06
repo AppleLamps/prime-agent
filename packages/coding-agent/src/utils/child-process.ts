@@ -1,4 +1,4 @@
-import type { ChildProcess } from "node:child_process";
+import { type ChildProcess, spawnSync } from "node:child_process";
 import { constants } from "node:os";
 import { basename } from "node:path";
 
@@ -13,6 +13,14 @@ export function shouldUseWindowsShell(command: string): boolean {
 }
 
 export function signalProcessGroupOrProcess(pid: number, signal: NodeJS.Signals): void {
+	if (process.platform === "win32") {
+		spawnSync("taskkill", windowsTaskkillArgs(pid, signal), {
+			stdio: "ignore",
+			windowsHide: true,
+			timeout: 5000,
+		});
+		return;
+	}
 	try {
 		process.kill(-pid, signal);
 		return;
@@ -24,6 +32,10 @@ export function signalProcessGroupOrProcess(pid: number, signal: NodeJS.Signals)
 	} catch {
 		// The process may already be fully reaped.
 	}
+}
+
+export function windowsTaskkillArgs(pid: number, signal: NodeJS.Signals): string[] {
+	return signal === "SIGKILL" ? ["/F", "/T", "/PID", String(pid)] : ["/T", "/PID", String(pid)];
 }
 
 /**

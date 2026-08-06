@@ -1,10 +1,12 @@
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+	collectDaemonSocketCandidates,
 	type DaemonInfo,
 	evaluateShutdownQuietPeriod,
 	isWorkerSocketPath,
 	mergeDiscoveredDaemonProcesses,
+	normalizeSocketPath,
 	parseLsofListeners,
 	parsePrimeAgentProcessIds,
 	parsePsEtimes,
@@ -17,6 +19,22 @@ import {
 } from "../src/cli/daemon-ps.js";
 import { getProcessStartId } from "../src/core/session-lease.js";
 import { defaultDaemonSocketDir } from "../src/modes/daemon/daemon-socket.js";
+
+describe("Windows daemon socket discovery", () => {
+	it("normalizes named pipes case-insensitively", () => {
+		expect(normalizeSocketPath("\\\\.\\pipe\\Prime-Agent-Daemon", "win32")).toBe("\\\\.\\pipe\\prime-agent-daemon");
+	});
+
+	it("always includes the default pipe and durable custom owner pipes", () => {
+		const defaultPipe = "\\\\.\\pipe\\Prime-Agent-Daemon";
+		const customPipe = "\\\\.\\pipe\\Custom-Prime-Agent";
+
+		expect(collectDaemonSocketCandidates("win32", defaultPipe, [customPipe, defaultPipe.toLowerCase()])).toEqual([
+			defaultPipe.toLowerCase(),
+			customPipe.toLowerCase(),
+		]);
+	});
+});
 
 describe("worker socket classification", () => {
 	it.runIf(process.platform !== "win32")("recognizes only worker sockets in the default service directory", () => {

@@ -1,7 +1,14 @@
 import type { ChildProcess } from "node:child_process";
 import { EventEmitter } from "node:events";
 import { describe, expect, it } from "vitest";
-import { waitForChildProcess } from "../src/utils/child-process.js";
+import { waitForChildProcess, windowsTaskkillArgs } from "../src/utils/child-process.js";
+
+describe("windowsTaskkillArgs", () => {
+	it("terminates the full process tree and force-escalates SIGKILL", () => {
+		expect(windowsTaskkillArgs(123, "SIGTERM")).toEqual(["/T", "/PID", "123"]);
+		expect(windowsTaskkillArgs(123, "SIGKILL")).toEqual(["/F", "/T", "/PID", "123"]);
+	});
+});
 
 describe("waitForChildProcess", () => {
 	it("reports signaled already-exited children as failures", async () => {

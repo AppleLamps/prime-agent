@@ -69,6 +69,67 @@ platform (`Scripts\python.exe` on win32, `bin/python` elsewhere).
 
 ## Improvements
 
+### 2026-08-05 — Terminate cancelled command process trees on Windows
+
+**Problem:** Cancelling or timing out a command killed only its immediate process
+on Windows, allowing descendant processes started by extensions or tools to keep
+running.
+
+**Fix:** Changed the shared process signaling helper to use hidden `taskkill /T`
+on Windows and force-escalate with `/F /T`. Command execution now uses the shared
+helper for both graceful cancellation and forced cleanup.
+
+**Files:**
+- `packages/coding-agent/src/utils/child-process.ts` — added Windows tree
+  termination and forced escalation
+- `packages/coding-agent/src/core/exec.ts` — routed cancellation through the
+  shared process-tree helper
+
+**Verify:** Start a command that launches a long-running child, cancel the
+command, and confirm both processes exit without a console window appearing.
+
+---
+
+### 2026-08-05 — Discover Windows daemons through named pipes and owner records
+
+**Problem:** Daemon discovery returned no listener or socket-directory candidates
+on Windows, so an idle daemon on the default named pipe was invisible. Custom
+named pipes were also invisible unless a worker descriptor referenced them.
+
+**Fix:** Always probes the default named pipe, adds durable supervisor owner
+records as custom candidates, and normalizes Windows pipe names to lowercase.
+Unreachable default probes without supporting state are omitted.
+
+**Files:**
+- `packages/coding-agent/src/cli/daemon-ps.ts` — added default and owner-record
+  candidates with case-insensitive pipe normalization
+- `packages/coding-agent/src/modes/daemon/daemon-supervisor-ownership.ts` —
+  exposed durable owner records for discovery
+
+**Verify:** Start an idle daemon on the default or a custom named pipe, then run
+`prime-agent ps`; the daemon should be listed and available to reap or shutdown.
+
+---
+
+### 2026-08-05 — Install uv automatically during Windows kernel bootstrap
+
+**Problem:** Kernel bootstrap tried to install missing `uv` with `sh` and `curl`,
+which fails on Windows systems without Unix shell tools.
+
+**Fix:** Added the official PowerShell installer on Windows and probes `PATH`,
+the standalone install directory, WinGet links, Scoop shims, and Cargo binaries.
+Installation hints and failures now show the platform-specific command and paths.
+
+**Files:**
+- `packages/coding-agent/src/core/kernel/bootstrap.ts` — added Windows installer
+  selection and executable discovery
+
+**Verify:** On Windows without `uv` on `PATH`, set
+`PRIME_AGENT_INSTALL_UV=1` and start the kernel; `uv.exe` should install and the
+kernel bootstrap should continue.
+
+---
+
 ### 2026-08-05 — Hide flashing console windows on child process spawns
 
 **Problem:** When Prime Agent spawned child processes on Windows (Git Bash for
