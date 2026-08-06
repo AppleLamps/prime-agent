@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- Fixed source-level extension tests requiring prebuilt workspace package outputs.
 - Fixed Windows resource path identity and containment checks to ignore casing while preserving directory boundaries.
 - Fixed detached daemon processes flashing console windows on Windows by applying hidden spawn options through the shared CLI launcher.
 - Fixed command cancellation on Windows leaving descendant processes running by terminating the full process tree with hidden `taskkill` escalation.
