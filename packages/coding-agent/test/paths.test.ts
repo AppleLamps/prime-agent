@@ -2,7 +2,13 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSyn
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { canonicalizePath, getCwdRelativePath, isLocalPath } from "../src/utils/paths.js";
+import {
+	canonicalizePath,
+	canonicalPathForComparison,
+	getCwdRelativePath,
+	isLocalPath,
+	isPathInside,
+} from "../src/utils/paths.js";
 
 let tempDir: string;
 
@@ -70,6 +76,30 @@ describe("getCwdRelativePath", () => {
 	it("rejects parent-directory traversals", () => {
 		const cwd = join(tmpdir(), "pi-paths-cwd");
 		expect(getCwdRelativePath(join(cwd, "..", "AGENTS.md"), cwd)).toBeUndefined();
+	});
+});
+
+describe("Windows path comparisons", () => {
+	it.runIf(process.platform === "win32")("case-folds canonical path identity", () => {
+		const dir = createTempDir();
+		const file = join(dir, "Resource.md");
+		writeFileSync(file, "hello");
+
+		expect(canonicalPathForComparison(file.toUpperCase())).toBe(canonicalPathForComparison(file.toLowerCase()));
+	});
+
+	it.runIf(process.platform === "win32")("uses case-insensitive containment without matching sibling roots", () => {
+		const dir = createTempDir();
+		const root = join(dir, "Project");
+		const child = join(root, "Prompts", "Review.md");
+		const sibling = join(dir, "Project-other", "Review.md");
+		mkdirSync(join(root, "Prompts"), { recursive: true });
+		mkdirSync(join(dir, "Project-other"), { recursive: true });
+		writeFileSync(child, "child");
+		writeFileSync(sibling, "sibling");
+
+		expect(isPathInside(child.toUpperCase(), root.toLowerCase())).toBe(true);
+		expect(isPathInside(sibling, root)).toBe(false);
 	});
 });
 

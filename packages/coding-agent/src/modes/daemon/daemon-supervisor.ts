@@ -5,7 +5,11 @@ import { createServer, type Server, type Socket } from "node:net";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { Writable } from "node:stream";
 import { getLogger } from "@earendil-works/pi-ai";
-import { createCliSubprocessEnv, createCliSubprocessLaunchSpec } from "../../cli/subprocess-launch.js";
+import {
+	createCliSubprocessEnv,
+	createCliSubprocessLaunchSpec,
+	DETACHED_CLI_SPAWN_OPTIONS,
+} from "../../cli/subprocess-launch.js";
 import {
 	appendRotatingLog,
 	getCronJobsPath,
@@ -2114,7 +2118,7 @@ export class DaemonSupervisor {
 		await this.assertRecoveryAllowed();
 		const child: ChildProcess = spawn(launch.command, launch.args, {
 			cwd: createCommand.config?.cwd ?? process.cwd(),
-			detached: true,
+			...DETACHED_CLI_SPAWN_OPTIONS,
 			env: createCliSubprocessEnv({
 				...process.env,
 				...launchEnv,
@@ -4849,7 +4853,7 @@ export class DaemonSupervisor {
 			delete environment[SESSION_LEASE_OWNER_ID_ENV];
 			const replacement = spawn(launch.command, launch.args, {
 				cwd: this.defaultSessionConfig.cwd ?? process.cwd(),
-				detached: true,
+				...DETACHED_CLI_SPAWN_OPTIONS,
 				env: environment,
 				stdio: "ignore",
 			});

@@ -24,7 +24,7 @@ import {
 	DAEMON_WORKER_TOKEN_ENV,
 } from "../modes/daemon/daemon-worker-protocol.js";
 import { isHelpCommandRequest, PUBLIC_COMMAND_NAMES, REMOVED_COMMAND_NAMES } from "./command-registry.js";
-import { createCliSubprocessEnv, formatCurrentCliCommand } from "./subprocess-launch.js";
+import { createCliSubprocessEnv, DETACHED_CLI_SPAWN_OPTIONS, formatCurrentCliCommand } from "./subprocess-launch.js";
 
 const DAEMON_STARTUP_TIMEOUT_MS = 30_000;
 const DAEMON_STARTUP_LOG_TAIL_BYTES = 4 * 1024;
@@ -373,7 +373,7 @@ async function ensureDaemonRunning(socketPath: string, spawnCwd?: string): Promi
 		[...process.execArgv, entrypoint, "--mode", "daemon", "--daemon-socket", socketPath],
 		{
 			cwd: spawnCwd ?? process.cwd(),
-			detached: true,
+			...DETACHED_CLI_SPAWN_OPTIONS,
 			env,
 			// A pipe would tie the daemon's stderr to this short-lived CLI
 			// (EPIPE once it exits); crash details come from the daemon log,

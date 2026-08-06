@@ -24,7 +24,11 @@ import { readFile } from "node:fs/promises";
 import { createConnection, createServer, type Server, type Socket } from "node:net";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { type Api, getLogger, type Model } from "@earendil-works/pi-ai";
-import { createCliSubprocessEnv, createCliSubprocessLaunchSpec } from "../../cli/subprocess-launch.js";
+import {
+	createCliSubprocessEnv,
+	createCliSubprocessLaunchSpec,
+	DETACHED_CLI_SPAWN_OPTIONS,
+} from "../../cli/subprocess-launch.js";
 import {
 	appendRotatingLog,
 	getCronJobsPath,
@@ -817,7 +821,7 @@ export class AgentDaemon {
 			delete environment[SESSION_LEASE_OWNER_ID_ENV];
 			const child = spawn(launch.command, launch.args, {
 				cwd: this.options.defaultSessionConfig.cwd ?? process.cwd(),
-				detached: true,
+				...DETACHED_CLI_SPAWN_OPTIONS,
 				env: environment,
 				stdio: "ignore",
 			});

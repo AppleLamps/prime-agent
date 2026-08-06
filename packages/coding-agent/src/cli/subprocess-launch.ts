@@ -7,6 +7,11 @@ export interface CliSubprocessLaunchSpec {
 	args: string[];
 }
 
+export const DETACHED_CLI_SPAWN_OPTIONS = {
+	detached: true,
+	windowsHide: true,
+} as const;
+
 export function createCliSubprocessEnv(
 	source: NodeJS.ProcessEnv = process.env,
 	entrypoint = process.argv[1],

@@ -1,7 +1,7 @@
 import { spawn } from "child_process";
 import { readdirSync, statSync } from "fs";
 import { homedir } from "os";
-import { basename, dirname, join } from "path";
+import { basename, dirname, isAbsolute, join, parse, resolve } from "path";
 import { fuzzyFilter } from "./fuzzy.js";
 import { getSlashCommandContext } from "./slash-command-context.js";
 
@@ -9,6 +9,18 @@ const PATH_DELIMITERS = new Set([" ", "\t", '"', "'", "="]);
 
 function toDisplayPath(value: string): string {
 	return value.replace(/\\/g, "/");
+}
+
+function hasPathSeparator(value: string): boolean {
+	return value.includes("/") || value.includes("\\");
+}
+
+function endsWithPathSeparator(value: string): boolean {
+	return value.endsWith("/") || value.endsWith("\\");
+}
+
+function isHomePath(value: string): boolean {
+	return value === "~" || value.startsWith("~/") || value.startsWith("~\\");
 }
 
 function escapeRegex(value: string): string {
@@ -505,7 +517,7 @@ export class CombinedAutocompleteProvider implements AutocompleteProvider {
 
 		// For natural triggers, return if it looks like a path, ends with /, starts with ~/, .
 		// Only return empty string if the text looks like it's starting a path context
-		if (pathPrefix.includes("/") || pathPrefix.startsWith(".") || pathPrefix.startsWith("~/")) {
+		if (hasPathSeparator(pathPrefix) || pathPrefix.startsWith(".") || isHomePath(pathPrefix)) {
 			return pathPrefix;
 		}
 
@@ -518,12 +530,10 @@ export class CombinedAutocompleteProvider implements AutocompleteProvider {
 		return null;
 	}
 
-	// Expand home directory (~/) to actual home path
+	// Expand home directory paths to the platform-native filesystem path.
 	private expandHomePath(path: string): string {
-		if (path.startsWith("~/")) {
-			const expandedPath = join(homedir(), path.slice(2));
-			// Preserve trailing slash if original path had one
-			return path.endsWith("/") && !expandedPath.endsWith("/") ? `${expandedPath}/` : expandedPath;
+		if (path.startsWith("~/") || path.startsWith("~\\")) {
+			return resolve(homedir(), path.slice(2));
 		} else if (path === "~") {
 			return homedir();
 		}
@@ -531,23 +541,17 @@ export class CombinedAutocompleteProvider implements AutocompleteProvider {
 	}
 
 	private resolveScopedFuzzyQuery(rawQuery: string): { baseDir: string; query: string; displayBase: string } | null {
-		const normalizedQuery = toDisplayPath(rawQuery);
-		const slashIndex = normalizedQuery.lastIndexOf("/");
-		if (slashIndex === -1) {
+		const separatorIndex = Math.max(rawQuery.lastIndexOf("/"), rawQuery.lastIndexOf("\\"));
+		if (separatorIndex === -1) {
 			return null;
 		}
 
-		const displayBase = normalizedQuery.slice(0, slashIndex + 1);
-		const query = normalizedQuery.slice(slashIndex + 1);
+		const rawBase = rawQuery.slice(0, separatorIndex + 1);
+		const displayBase = toDisplayPath(rawBase);
+		const query = rawQuery.slice(separatorIndex + 1);
 
-		let baseDir: string;
-		if (displayBase.startsWith("~/")) {
-			baseDir = this.expandHomePath(displayBase);
-		} else if (displayBase.startsWith("/")) {
-			baseDir = displayBase;
-		} else {
-			baseDir = join(this.basePath, displayBase);
-		}
+		const expandedBase = isHomePath(rawBase) ? this.expandHomePath(rawBase) : rawBase;
+		const baseDir = isAbsolute(expandedBase) ? resolve(expandedBase) : resolve(this.basePath, expandedBase);
 
 		try {
 			if (!statSync(baseDir).isDirectory()) {
@@ -577,44 +581,37 @@ export class CombinedAutocompleteProvider implements AutocompleteProvider {
 			let expandedPrefix = rawPrefix;
 
 			// Handle home directory expansion
-			if (expandedPrefix.startsWith("~")) {
+			if (isHomePath(expandedPrefix)) {
 				expandedPrefix = this.expandHomePath(expandedPrefix);
 			}
+			const expandedIsAbsolute = isAbsolute(expandedPrefix);
+			const expandedRoot = parse(expandedPrefix).root;
 
 			const isRootPrefix =
 				rawPrefix === "" ||
 				rawPrefix === "./" ||
+				rawPrefix === ".\\" ||
 				rawPrefix === "../" ||
+				rawPrefix === "..\\" ||
 				rawPrefix === "~" ||
 				rawPrefix === "~/" ||
-				rawPrefix === "/" ||
+				rawPrefix === "~\\" ||
+				(expandedRoot !== "" && expandedPrefix === expandedRoot) ||
 				(isAtPrefix && rawPrefix === "");
 
 			if (isRootPrefix) {
 				// Complete from specified position
-				if (rawPrefix.startsWith("~") || expandedPrefix.startsWith("/")) {
-					searchDir = expandedPrefix;
-				} else {
-					searchDir = join(this.basePath, expandedPrefix);
-				}
+				searchDir = expandedIsAbsolute ? resolve(expandedPrefix) : resolve(this.basePath, expandedPrefix);
 				searchPrefix = "";
-			} else if (rawPrefix.endsWith("/")) {
+			} else if (endsWithPathSeparator(rawPrefix)) {
 				// If prefix ends with /, show contents of that directory
-				if (rawPrefix.startsWith("~") || expandedPrefix.startsWith("/")) {
-					searchDir = expandedPrefix;
-				} else {
-					searchDir = join(this.basePath, expandedPrefix);
-				}
+				searchDir = expandedIsAbsolute ? resolve(expandedPrefix) : resolve(this.basePath, expandedPrefix);
 				searchPrefix = "";
 			} else {
 				// Split into directory and file prefix
 				const dir = dirname(expandedPrefix);
 				const file = basename(expandedPrefix);
-				if (rawPrefix.startsWith("~") || expandedPrefix.startsWith("/")) {
-					searchDir = dir;
-				} else {
-					searchDir = join(this.basePath, dir);
-				}
+				searchDir = expandedIsAbsolute ? resolve(dir) : resolve(this.basePath, dir);
 				searchPrefix = file;
 			}
 
@@ -641,29 +638,18 @@ export class CombinedAutocompleteProvider implements AutocompleteProvider {
 				const name = entry.name;
 				const displayPrefix = rawPrefix;
 
-				if (displayPrefix.endsWith("/")) {
+				if (endsWithPathSeparator(displayPrefix)) {
 					// If prefix ends with /, append entry to the prefix
 					relativePath = displayPrefix + name;
-				} else if (displayPrefix.includes("/") || displayPrefix.includes("\\")) {
-					// Preserve ~/ format for home directory paths
-					if (displayPrefix.startsWith("~/")) {
-						const homeRelativeDir = displayPrefix.slice(2); // Remove ~/
-						const dir = dirname(homeRelativeDir);
-						relativePath = `~/${dir === "." ? name : join(dir, name)}`;
-					} else if (displayPrefix.startsWith("/")) {
-						// Absolute path - construct properly
-						const dir = dirname(displayPrefix);
-						if (dir === "/") {
-							relativePath = `/${name}`;
-						} else {
-							relativePath = `${dir}/${name}`;
-						}
-					} else {
-						relativePath = join(dirname(displayPrefix), name);
-						// path.join normalizes away ./ prefix, preserve it
-						if (displayPrefix.startsWith("./") && !relativePath.startsWith("./")) {
-							relativePath = `./${relativePath}`;
-						}
+				} else if (hasPathSeparator(displayPrefix)) {
+					relativePath = join(dirname(displayPrefix), name);
+					// path.join normalizes away ./ prefix, preserve it
+					if (
+						(displayPrefix.startsWith("./") || displayPrefix.startsWith(".\\")) &&
+						!relativePath.startsWith("./") &&
+						!relativePath.startsWith(".\\")
+					) {
+						relativePath = `./${relativePath}`;
 					}
 				} else {
 					// For standalone entries, preserve ~/ if original prefix was ~/

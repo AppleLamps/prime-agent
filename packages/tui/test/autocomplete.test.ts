@@ -1,8 +1,8 @@
 import assert from "node:assert";
 import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { homedir, tmpdir } from "node:os";
+import { basename, dirname, join } from "node:path";
 import { afterEach, beforeEach, describe, it, test } from "node:test";
 import { CombinedAutocompleteProvider } from "../src/autocomplete.js";
 import { getSlashCommandContext } from "../src/slash-command-context.js";
@@ -626,6 +626,43 @@ describe("CombinedAutocompleteProvider", () => {
 			assert.notEqual(result, null, "Should return suggestions for ./ directory path");
 			const values = result?.items.map((item) => item.value);
 			assert.ok(values?.includes("./src/"), `Expected ./src/ in ${JSON.stringify(values)}`);
+		});
+	});
+
+	describe("Windows path completion", { skip: process.platform !== "win32" }, () => {
+		let rootDir = "";
+		let homeDir = "";
+
+		beforeEach(() => {
+			rootDir = mkdtempSync(join(tmpdir(), "pi-autocomplete-windows-"));
+			homeDir = mkdtempSync(join(homedir(), "pi-autocomplete-windows-"));
+			writeFileSync(join(rootDir, "alpha.txt"), "alpha");
+			writeFileSync(join(homeDir, "alpha.txt"), "alpha");
+		});
+
+		afterEach(() => {
+			rmSync(rootDir, { recursive: true, force: true });
+			rmSync(homeDir, { recursive: true, force: true });
+		});
+
+		test("completes absolute drive-letter paths without joining them beneath cwd", async () => {
+			const provider = new CombinedAutocompleteProvider([], join(rootDir, "unrelated-cwd"));
+			const line = `${rootDir}\\al`;
+			const result = await getSuggestions(provider, [line], 0, line.length);
+
+			assert.notEqual(result, null);
+			const values = result?.items.map((item) => item.value);
+			assert.ok(values?.includes(`${rootDir.replaceAll("\\", "/")}/alpha.txt`));
+		});
+
+		test("expands home paths that use backslashes", async () => {
+			const provider = new CombinedAutocompleteProvider([], rootDir);
+			const line = `~\\${basename(homeDir)}\\al`;
+			const result = await getSuggestions(provider, [line], 0, line.length);
+
+			assert.notEqual(result, null);
+			const values = result?.items.map((item) => item.value);
+			assert.ok(values?.includes(`~/${basename(homeDir)}/alpha.txt`));
 		});
 	});
 

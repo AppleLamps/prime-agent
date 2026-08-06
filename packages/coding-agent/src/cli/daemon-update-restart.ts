@@ -14,7 +14,7 @@ import {
 	DAEMON_WORKER_SUPERVISOR_SOCKET_ENV,
 	DAEMON_WORKER_TOKEN_ENV,
 } from "../modes/daemon/daemon-worker-protocol.js";
-import { createCliSubprocessLaunchSpec } from "./subprocess-launch.js";
+import { createCliSubprocessLaunchSpec, DETACHED_CLI_SPAWN_OPTIONS } from "./subprocess-launch.js";
 
 export const DAEMON_UPDATE_RESTART_COORDINATOR_FLAG = "--internal-update-restart-coordinator";
 export const DAEMON_UPDATE_RESTART_STATUS_FLAG = "--internal-update-restart-status";
@@ -549,7 +549,7 @@ export async function launchDaemonUpdateRestartCoordinator(
 	]);
 	const child = spawn(launch.command, launch.args, {
 		cwd: options.cwd ?? process.cwd(),
-		detached: true,
+		...DETACHED_CLI_SPAWN_OPTIONS,
 		env: coordinatorEnvironment(agentDir),
 		stdio: "ignore",
 	});

@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Fixed Windows file autocomplete for absolute drive-letter paths, backslash separators, and `~\` home paths.
+
 ## [0.7.0] - 2026-08-05
 
 ## [0.6.1] - 2026-08-05

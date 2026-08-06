@@ -9,10 +9,23 @@ import { isAbsolute, relative, resolve as resolvePath, sep } from "node:path";
  */
 export function canonicalizePath(path: string): string {
 	try {
-		return realpathSync(path);
+		return realpathSync.native(path);
 	} catch {
 		return path;
 	}
+}
+
+export function canonicalPathForComparison(path: string): string {
+	const canonicalPath = resolvePath(canonicalizePath(resolvePath(path)));
+	return process.platform === "win32" ? canonicalPath.toLowerCase() : canonicalPath;
+}
+
+export function isPathInside(target: string, root: string): boolean {
+	const relativePath = relative(canonicalPathForComparison(root), canonicalPathForComparison(target));
+	return (
+		relativePath === "" ||
+		(relativePath !== ".." && !relativePath.startsWith(`..${sep}`) && !isAbsolute(relativePath))
+	);
 }
 
 /**
@@ -43,12 +56,7 @@ function resolveAgainstCwd(filePath: string, cwd: string): string {
 export function getCwdRelativePath(filePath: string, cwd: string): string | undefined {
 	const resolvedCwd = resolvePath(cwd);
 	const resolvedPath = resolveAgainstCwd(filePath, resolvedCwd);
-	const relativePath = relative(resolvedCwd, resolvedPath);
-	const isInsideCwd =
-		relativePath === "" ||
-		(relativePath !== ".." && !relativePath.startsWith(`..${sep}`) && !isAbsolute(relativePath));
-
-	return isInsideCwd ? relativePath || "." : undefined;
+	return isPathInside(resolvedPath, resolvedCwd) ? relative(resolvedCwd, resolvedPath) || "." : undefined;
 }
 
 export function formatPathRelativeToCwdOrAbsolute(filePath: string, cwd: string): string {

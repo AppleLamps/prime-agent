@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Fixed Windows resource path identity and containment checks to ignore casing while preserving directory boundaries.
+- Fixed detached daemon processes flashing console windows on Windows by applying hidden spawn options through the shared CLI launcher.
 - Fixed command cancellation on Windows leaving descendant processes running by terminating the full process tree with hidden `taskkill` escalation.
 - Fixed daemon discovery on Windows by probing the default named pipe and durable custom supervisor owner records with case-insensitive pipe normalization.
 - Fixed kernel bootstrap on Windows automatically installing and locating `uv` with the official PowerShell installer.

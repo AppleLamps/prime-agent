@@ -17,6 +17,7 @@ import { isLocalPath } from "../utils/paths.js";
 import { isValidThinkingLevel } from "./args.js";
 import { formatSessionListTable } from "./daemon-list-format.js";
 import { runPs, runReap } from "./daemon-ps.js";
+import { DETACHED_CLI_SPAWN_OPTIONS } from "./subprocess-launch.js";
 
 interface ParsedDaemonClientCommand {
 	command: string;
@@ -693,7 +694,7 @@ async function runStart(parsed: ParsedDaemonClientCommand): Promise<void> {
 	];
 	const child = spawn(process.execPath, daemonArgs, {
 		cwd: sessionArgs.config?.cwd ?? process.cwd(),
-		detached: true,
+		...DETACHED_CLI_SPAWN_OPTIONS,
 		env: process.env,
 		stdio: "ignore",
 	});

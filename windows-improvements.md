@@ -69,6 +69,70 @@ platform (`Scripts\python.exe` on win32, `bin/python` elsewhere).
 
 ## Improvements
 
+### 2026-08-05 — Compare Windows resource paths case-insensitively
+
+**Problem:** Resource identity and containment checks compared path strings with
+case-sensitive equality and prefix checks. Equivalent Windows paths with different
+drive or directory casing could be loaded twice or assigned the wrong scope.
+
+**Fix:** Added canonical comparison and containment helpers that use native real
+paths, case-fold on Windows, and use `path.relative()` to preserve directory
+boundaries. Resource loading and prompt-template scope checks now share them.
+
+**Files:**
+- `packages/coding-agent/src/utils/paths.ts` — added canonical comparison and
+  containment helpers
+- `packages/coding-agent/src/core/resource-loader.ts` — used the shared helpers
+  for resource identity, metadata lookup, and scope detection
+- `packages/coding-agent/src/core/prompt-templates.ts` — used the shared helper
+  for prompt scope detection
+
+**Verify:** Load the same resource through paths with different drive-letter or
+directory casing and confirm it is loaded once with the correct user or project
+scope.
+
+### 2026-08-05 — Hide detached daemon console windows
+
+**Problem:** Detached daemon supervisors, workers, replacements, and update
+coordinators could open visible console windows when spawned on Windows.
+
+**Fix:** Added shared detached CLI spawn options with `windowsHide: true` and
+applied them to every detached daemon-related spawn.
+
+**Files:**
+- `packages/coding-agent/src/cli/subprocess-launch.ts` — added shared hidden
+  detached spawn options
+- `packages/coding-agent/src/cli/daemon-launch.ts` — hid daemon startup
+- `packages/coding-agent/src/cli/daemon-command.ts` — hid background sessions
+- `packages/coding-agent/src/cli/daemon-update-restart.ts` — hid update
+  coordinators
+- `packages/coding-agent/src/modes/daemon/daemon-mode.ts` — hid replacement
+  supervisors
+- `packages/coding-agent/src/modes/daemon/daemon-supervisor.ts` — hid workers and
+  replacement supervisors
+- `packages/coding-agent/src/utils/shell.ts` — reused the hidden synchronous
+  process-tree termination helper
+
+**Verify:** Start, restart, update, and stop background daemon sessions on Windows
+and confirm no console window flashes.
+
+### 2026-08-05 — Complete Windows paths in file autocomplete
+
+**Problem:** File autocomplete treated only `/` as a natural path separator,
+joined absolute drive-letter paths beneath the working directory, and did not
+expand `~\` home paths.
+
+**Fix:** Made path detection separator-aware, used `path.isAbsolute()`,
+`path.parse().root`, and `path.resolve()` for filesystem operations, accepted
+both home path separator forms, and normalized separators only for display.
+
+**Files:**
+- `packages/tui/src/autocomplete.ts` — added Windows-aware path extraction,
+  resolution, home expansion, and display formatting
+
+**Verify:** Complete `C:\path\to\fi` and `~\path\to\fi` on Windows and confirm
+the matching file is suggested using `/` separators for display.
+
 ### 2026-08-05 — Terminate cancelled command process trees on Windows
 
 **Problem:** Cancelling or timing out a command killed only its immediate process
